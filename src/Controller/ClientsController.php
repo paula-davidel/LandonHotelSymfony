@@ -1,0 +1,186 @@
+<?php
+// src/Controller/ClientsController.php
+namespace App\Controller;
+
+use Doctrine\DBAL\DBALException;
+use Doctrine\DBAL\Driver\PDOException;
+use Doctrine\ORM\ORMException;
+use Swift_Mailer;
+use Swift_Message;
+use Swift_SmtpTransport;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use App\Entity\Client;
+
+class ClientsController extends AbstractController
+{
+
+    private $titles = ['mr', 'ms', 'mrs', 'dr', 'mx'];
+
+    /**
+     * @Route("/clients", name="clients")
+     */
+
+    public function showIndex()
+    {
+        $clients = $this->getDoctrine()->getRepository(Client::class)->findAll();
+        $data = array(
+            "clients" => $clients
+        );
+
+//        $routeName= $_SERVER["BASE"];
+//        return $this->render("clients/index.html.twig",
+//            [
+//                "base_url" => $routeName
+//            ]);
+
+        return $this->render("clients/index.html.twig",$data);
+
+    }
+
+    /**
+     * @Route("/clients/modify/{id_client}", name="modify")
+     */
+    public function showDetails(Request $request, $id_client)
+    {
+
+        $clients = $this->getDoctrine()->getRepository(Client::class)
+            ->find($id_client);
+
+        $data = array(
+            "clients" => $clients,
+            "mode"    => "modify",
+            "form"    => []
+        );
+
+        $data["titles"] = $this->titles;
+
+        $form = $this->createFormBuilder()
+            ->add("name")
+            ->add("last_name")
+            ->add("title")
+            ->add("address")
+            ->add("zip_code")
+            ->add("city")
+            ->add("state")
+            ->add("email")
+            ->getForm();
+
+        // verify if a data sending or not
+        $form->handleRequest($request);
+
+        if($form->isSubmitted())
+        {
+            $get_data = $form->getData();
+            $data["form"] = [];
+            $data["form"] = $get_data;
+
+            $clients->setTitle($get_data["title"]);
+            $clients->setName($get_data["name"]);
+            $clients->setLastName($get_data["last_name"]);
+            $clients->setAddress($get_data["address"]);
+            $clients->setZipCode($get_data["zip_code"]);
+            $clients->setCity($get_data["city"]);
+            $clients->setState($get_data["state"]);
+            $clients->setEmail($get_data["email"]);
+
+            $em = $this->getDoctrine()->getManager();
+            $em->flush();
+
+            return $this->redirectToRoute("clients");
+        }
+        else
+        {
+            $data["form"] = $clients;
+        }
+
+        return $this->render("clients/form.html.twig",$data);
+
+    }
+
+    /**
+     * @Route("/clients/new", name="new")
+     */
+    public function showNew(Request $request, \Swift_Mailer $mailer)
+    {
+        $data = array(
+            "mode"    => "new",
+            "form"    => [],
+            "titles"  => $this->titles
+        );
+
+        $data["form"]["title"] = "";
+
+
+        $form = $this->createFormBuilder()
+            ->add("title")
+            ->add("name")
+            ->add("last_name")
+            ->add("address")
+            ->add("zip_code")
+            ->add("city")
+            ->add("state")
+            ->add("email")
+            ->getForm();
+
+        // verify if a data sending or not
+        $form->handleRequest($request);
+
+        if($form->isSubmitted())
+        {
+            $get_data = $form->getData();
+            $data["form"] = [];
+            $data["form"] = $get_data;
+
+            $em = $this->getDoctrine()->getManager();
+            $client = new Client();
+            $client->setTitle($get_data["title"]);
+            $client->setName($get_data["name"]);
+            $client->setLastName($get_data["last_name"]);
+            $client->setAddress($get_data["address"]);
+            $client->setZipCode($get_data["zip_code"]);
+            $client->setCity($get_data["city"]);
+            $client->setState($get_data["state"]);
+            $client->setEmail($get_data["email"]);
+
+            try {
+                $em->persist($client);
+                $em->flush();
+                $message = 'Done';
+            } catch (DBALException $e) {
+                $message = sprintf('DBALException [%i]: %s', $e->getCode(), $e->getMessage());
+            } catch (PDOException $e) {
+                $message = sprintf('PDOException [%i]: %s', $e->getCode(), $e->getMessage());
+            } catch (ORMException $e) {
+                $message = sprintf('ORMException [%i]: %s', $e->getCode(), $e->getMessage());
+            } catch (Exception $e) {
+                $message = sprintf('Exception [%i]: %s', $e->getCode(), $e->getMessage());
+            }
+
+            echo $message;
+            $transport = (new Swift_SmtpTransport('smtp.mailtrap.io', 2525))
+                ->setUsername('135849b1c3b348') // generated by Mailtrap
+                ->setPassword('966809f26596d2') // generated by Mailtrap
+            ;
+            $mailer = new Swift_Mailer($transport);
+            // Add subject
+            $message = (new \Swift_Message('Hello Email'))
+                //Put the From address
+            ->setFrom(['davidelpaula@gmail.com'])
+            // Include several To addresses
+            ->setTo([$client->getEmail() => 'New Mailtrap user']);
+
+            $message->setBody('<p>Welcome to Maitrap!</p>
+            Now your test emails will be <i>safe</i>', 'text/html');
+            $message->addPart('Welcome to Mailtrap, now your test emails will be safe', 'text/plain');
+            $mailer->send($message);
+
+            return $this->redirectToRoute("clients");
+        }
+
+        return $this->render("clients/form.html.twig",$data);
+    }
+
+}

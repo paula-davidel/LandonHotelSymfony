@@ -1,0 +1,35 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+    <div class="row">
+      <div class="medium-12 large-12 columns">
+        <h4>Reservations</h4>
+
+        <table class="stack">
+          <thead>
+            <tr>
+              <th width="200">ROOM</th>
+              <th width="200">Name</th>
+              <th width="200">DATES</th>
+{#              <th width="200">Action</th>#}
+            </tr>
+          </thead>
+          <tbody>
+          {% for reservation in info %}
+            <tr>
+              <td>{{ reservation.client_name }}</td>
+              <td>{{ reservation.room_name }}</td>
+              <td>{{ reservation.date_in | date}} - {{ reservation.date_out | date}}</td>
+{#              <td>#}
+{#                <a class="hollow button" href="{{ path("modify",{ "id_client": client.id }) }}">EDIT</a>#}
+{#                <a class="hollow button warning" href="{{ path("booking", {"id_client": client.id }) }}">BOOK A ROOM</a>#}
+{#              </td>#}
+              {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+{% endblock %}
